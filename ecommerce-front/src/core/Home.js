@@ -7,25 +7,24 @@ import Search from './Search';
 const Home = () => {
   const [productsBySell, setProductsBySell] = useState([]);
   const [productsByArrival, setProductsByArrival] = useState([]);
-  /*eslint-disable */
-  const [error, setError] = useState(false);
+  const [, setError] = useState(false);
 
   const loadProductsBySell = () => {
     getProducts('sold').then((data) => {
-      if (data.error) {
+      if (data && data.error) {
         setError(data.error);
       } else {
-        setProductsBySell(data);
+        setProductsBySell(data ? data : []);
       }
     });
   };
 
   const loadProductsByArrival = () => {
     getProducts('createdAt').then((data) => {
-      if (data.error) {
+      if (data && data.error) {
         setError(data.error);
       } else {
-        setProductsByArrival(data);
+        setProductsByArrival(data ? data : []);
       }
     });
   };

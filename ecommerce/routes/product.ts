@@ -1,7 +1,7 @@
-const express = require('express');
-const { requireSignin, isAuth, isAdmin } = require('../controllers/auth');
-const { userById } = require('../controllers/user');
-const {
+import express, { Router } from 'express';
+import { requireSignin, isAuth, isAdmin } from '../controllers/auth';
+import { userById } from '../controllers/user';
+import {
   create,
   productById,
   read,
@@ -13,9 +13,9 @@ const {
   listBySearch,
   photo,
   listSearch
-} = require('../controllers/product');
+} from '../controllers/product';
 
-const router = express.Router();
+const router: Router = express.Router();
 
 router.get('/product/:productId', read);
 
@@ -53,4 +53,4 @@ router.get('/product/photo/:productId', photo);
 router.param('userId', userById);
 router.param('productId', productById);
 
-module.exports = router;
+export default router;

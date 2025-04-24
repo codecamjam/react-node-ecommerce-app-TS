@@ -1,16 +1,16 @@
-const express = require('express');
-const { requireSignin, isAuth, isAdmin } = require('../controllers/auth');
-const { userById } = require('../controllers/user');
-const {
+import express, { Router } from 'express';
+import { requireSignin, isAuth, isAdmin } from '../controllers/auth';
+import { userById } from '../controllers/user';
+import {
   create,
   categoryById,
   read,
   update,
   remove,
   list
-} = require('../controllers/category');
+} from '../controllers/category';
 
-const router = express.Router();
+const router: Router = express.Router();
 
 router.get('/category/:categoryId', read);
 
@@ -43,4 +43,4 @@ router.get('/categories', list);
 router.param('categoryId', categoryById);
 router.param('userId', userById);
 
-module.exports = router;
+export default router;
