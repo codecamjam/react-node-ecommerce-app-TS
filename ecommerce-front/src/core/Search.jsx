@@ -84,7 +84,7 @@ const Search = () => {
             >
               <option value="All">All</option>
               {categories.map((c, i) => (
-                <option key={i} value={c._id}>
+                <option key={i} value={c.id}>
                   {c.name}
                 </option>
               ))}

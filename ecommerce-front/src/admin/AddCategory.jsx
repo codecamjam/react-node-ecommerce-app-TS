@@ -17,19 +17,22 @@ const AddCategory = () => {
     setName(e.target.value);
   };
 
-  const clickSubmit = (e) => {
+  const clickSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setSuccess(false);
-    //make request to api to create category
-    createCategory(user._id, token, { name }).then((data) => {
+    try {
+      const data = await createCategory(user.id, token, { name });
       if (data.error) {
         setError(true);
       } else {
         setError('');
         setSuccess(true);
       }
-    });
+    } catch (err) {
+      console.log(err);
+      setError(true);
+    }
   };
 
   const newCategoryForm = () => (

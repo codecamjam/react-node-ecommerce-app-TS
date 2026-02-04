@@ -20,7 +20,7 @@ const Checkout = ({ products, setRun = (f) => f, run = undefined }) => {
     address: '',
   });
 
-  const userId = isAuthenticated() && isAuthenticated().user._id;
+  const userId = isAuthenticated() && isAuthenticated().user.id;
   const token = isAuthenticated() && isAuthenticated().token;
 
   const getToken = (userId, token) => {
@@ -93,7 +93,7 @@ const Checkout = ({ products, setRun = (f) => f, run = undefined }) => {
 
             const createOrderData = {
               products: products,
-              transaction_id: response.transaction.id,
+              transactionId: response.transaction.id,
               amount: response.transaction.amount,
               address: deliveryAddress,
             };

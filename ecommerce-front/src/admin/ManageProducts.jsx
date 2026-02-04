@@ -20,7 +20,7 @@ const ManageProducts = () => {
   };
 
   const destroy = (productId) => {
-    deleteProduct(productId, user._id, token).then((data) => {
+    deleteProduct(productId, user.id, token).then((data) => {
       if (data.error) {
         console.log(data.error);
       } else {
@@ -54,13 +54,13 @@ const ManageProducts = () => {
                   align-items-center"
               >
                 <strong>{p.name}</strong>
-                <Link to={`/admin/product/update/${p._id}`}>
+                <Link to={`/admin/product/update/${p.id}`}>
                   <span className="badge badge-warning badge-pill">
                     Update
                   </span>
                 </Link>
                 <span
-                  onClick={() => destroy(p._id)}
+                  onClick={() => destroy(p.id)}
                   className="badge badge-danger badge-pill"
                 >
                   Delete

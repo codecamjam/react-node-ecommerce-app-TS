@@ -15,7 +15,7 @@ const Orders = () => {
   const { user, token } = isAuthenticated();
 
   const loadOrders = () => {
-    listOrders(user._id, token).then((data) => {
+    listOrders(user.id, token).then((data) => {
       if (data.error) {
         console.log(data.error);
       } else {
@@ -25,7 +25,7 @@ const Orders = () => {
   };
 
   const loadStatusValues = () => {
-    getStatusValues(user._id, token).then((data) => {
+    getStatusValues(user.id, token).then((data) => {
       if (data.error) {
         console.log(data.error);
       } else {
@@ -62,7 +62,7 @@ const Orders = () => {
   );
 
   const handleStatusChange = (e, orderId) => {
-    updateOrderStatus(user._id, token, orderId, e.target.value).then(
+    updateOrderStatus(user.id, token, orderId, e.target.value).then(
       (data) => {
         if (data.error) {
           console.log('Status update failed');
@@ -77,7 +77,7 @@ const Orders = () => {
     <div className="form-group">
       <h3 className="mark mb-4">Status: {o.status}</h3>
       <select
-        onChange={(e) => handleStatusChange(e, o._id)}
+        onChange={(e) => handleStatusChange(e, o.id)}
         className="form-control"
       >
         <option>Update Status</option>
@@ -107,13 +107,13 @@ const Orders = () => {
                 style={{ borderBottom: '5px solid indigo' }}
               >
                 <h2 className="mb-5">
-                  <span className="bg-primary">Order ID: {o._id}</span>
+                  <span className="bg-primary">Order ID: {o.id}</span>
                 </h2>
 
                 <ul className="list-group mb-2">
                   <li className="list-group-item">{showStatus(o)}</li>
                   <li className="list-group-item">
-                    Transaction ID: {o.transaction_id}
+                    Transaction ID: {o.transactionId}
                   </li>
                   <li className="list-group-item">Amount: ${o.amount}</li>
                   <li className="list-group-item">
@@ -140,7 +140,7 @@ const Orders = () => {
                     {showInput('Product name', p.name)}
                     {showInput('Product price', p.price)}
                     {showInput('Product total', p.count)}
-                    {showInput('Product Id', p._id)}
+                    {showInput('Product Id', p.id)}
                   </div>
                 ))}
               </div>

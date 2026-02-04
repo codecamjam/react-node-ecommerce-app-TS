@@ -1,14 +1,15 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken'; // to generate signed token
 import expressJwt from 'express-jwt'; // for authentication check
-import { IUser, User } from '../models/user';
+import { User } from '../entity/User';
 import { errorHandler } from '../helpers/dbErrorHandler';
+import { getManager } from 'typeorm';
 
 // Define custom request types
 interface AuthRequest extends Request {
-  profile?: IUser;
+  profile?: User;
   auth?: {
-    _id: string;
+    id: number;
   };
 }
 
@@ -17,15 +18,31 @@ export const signup = async (
   req: Request,
   res: Response
 ): Promise<Response | void> => {
-  const newUser = new User(req.body);
+  const { name, email, password, about } = req.body;
+
   try {
-    const user = await newUser.save();
-    user.salt = undefined;
-    user.hashed_password = undefined;
-    res.json({ user });
+    const repository = getManager().getRepository(User);
+    const existingUser = await repository.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({
+        error: 'User with that email already exists'
+      });
+    }
+
+    const newUser = new User();
+    newUser.name = name;
+    newUser.email = email;
+    newUser.password = password; // This will trigger the setter to hash the password
+    newUser.about = about;
+
+    const { salt, hashedPassword, ...savedUser } = await repository.save(
+      newUser
+    );
+
+    res.json({ user: savedUser });
   } catch (err) {
     res.status(400).json({
-      err: errorHandler(err)
+      error: errorHandler(err)
     });
   }
 };
@@ -38,7 +55,8 @@ export const signin = async (
   const { email, password } = req.body;
 
   try {
-    const user = await User.findOne({ email }).exec();
+    const repository = getManager().getRepository(User);
+    const user = await repository.findOne({ email });
     if (!user) {
       return res.status(400).json({
         error: 'User with that email does not exist. Please signup'
@@ -48,19 +66,22 @@ export const signin = async (
     // Check if the password matches
     if (!user.authenticate(password)) {
       return res.status(401).json({
-        error: 'Email and password don’t match'
+        error: "Email and password don't match"
       });
     }
 
     // Generate a signed token with user ID and secret
-    const token = jwt.sign({ _id: user._id }, process.env.JWT_SECRET);
+    const token = jwt.sign(
+      { id: user.id },
+      process.env.JWT_SECRET as string
+    );
 
     // Persist the token as 't' in a cookie with an expiry date
     res.cookie('t', token, { expires: new Date(Date.now() + 9999) });
 
     // Return response with user and token to the frontend client
-    const { _id, name, role } = user;
-    return res.json({ token, user: { _id, email, name, role } });
+    const { id, name, role } = user;
+    return res.json({ token, user: { id, email, name, role } });
   } catch (err) {
     res.status(400).json({
       error: 'Error signing in'
@@ -87,10 +108,7 @@ export const isAuth = (
   res: Response,
   next: NextFunction
 ): Response | void => {
-  const user =
-    req.profile &&
-    req.auth &&
-    req.profile._id.toString() === req.auth._id.toString();
+  const user = req.profile && req.auth && req.profile.id === req.auth.id;
   if (!user) {
     return res.status(403).json({
       error: 'Access denied'

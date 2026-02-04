@@ -5,9 +5,23 @@
       "type": "node",
       "request": "launch",
       "name": "Launch Server",
+      "runtimeExecutable": "${env:HOME}/.nvm/versions/node/v16.20.2/bin/node",
+      "runtimeArgs": ["-r", "ts-node/register"],
       "skipFiles": ["<node_internals>/**"],
-      "program": "${workspaceFolder}/ecommerce/app.js",
-      "envFile": "${workspaceFolder}/ecommerce/.env"
+      "program": "${workspaceFolder}/ecommerce/index.ts",
+      "envFile": "${workspaceFolder}/ecommerce/.env",
+      "cwd": "${workspaceFolder}/ecommerce"
+    },
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "Debug Seed Script",
+      "runtimeExecutable": "${env:HOME}/.nvm/versions/node/v16.20.2/bin/node",
+      "runtimeArgs": ["-r", "ts-node/register"],
+      "skipFiles": ["<node_internals>/**"],
+      "program": "${workspaceFolder}/ecommerce/seed.ts",
+      "envFile": "${workspaceFolder}/ecommerce/.env",
+      "cwd": "${workspaceFolder}/ecommerce"
     }
   ]
 }

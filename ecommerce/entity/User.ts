@@ -31,7 +31,7 @@ export class User {
   @Column({ type: 'int', default: 0 })
   role: number;
 
-  @Column({ type: 'json', default: () => "'[]'" })
+  @Column({ type: 'json', nullable: true })
   history: any[];
 
   @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })

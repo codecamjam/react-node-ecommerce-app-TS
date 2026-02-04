@@ -60,13 +60,13 @@ const AddProduct = () => {
     setValues({ ...values, [name]: value });
   };
 
-  const clickSubmit = (event) => {
+  const clickSubmit = async (event) => {
     event.preventDefault();
     setValues({ ...values, error: '', loading: true });
-
-    createProduct(user._id, token, formData).then((data) => {
+    try {
+      const data = await createProduct(user.id, token, formData);
       if (data.error) {
-        setValues({ ...values, error: data.error });
+        setValues((prevValues) => ({ ...prevValues, error: data.error, loading: false }));
       } else {
         setValues({
           ...values,
@@ -79,8 +79,12 @@ const AddProduct = () => {
           createdProduct: data.name,
         });
       }
-    });
+    } catch (err) {
+      console.error(err);
+      setValues((prevValues) => ({ ...prevValues, error: 'Product creation failed', loading: false }));
+    }
   };
+  
 
   const newPostForm = () => (
     <form className="mb-3" onSubmit={clickSubmit}>
@@ -134,7 +138,7 @@ const AddProduct = () => {
           <option>Please select</option>
           {categories &&
             categories.map((c, i) => (
-              <option key={i} value={c._id}>
+              <option key={i} value={c.id}>
                 {c.name}
               </option>
             ))}

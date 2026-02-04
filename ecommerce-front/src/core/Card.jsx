@@ -20,7 +20,7 @@ const Card = ({
   const showViewButton = (showViewProductButton) => {
     return (
       showViewProductButton && (
-        <Link className="mr-2" to={`/product/${product._id}`}>
+        <Link className="mr-2" to={`/product/${product.id}`}>
           <button className="btn btn-outline-primary my-2">
             View Product
           </button>
@@ -59,7 +59,7 @@ const Card = ({
       showRemoveProductButton && (
         <button
           onClick={() => {
-            removeItem(product._id);
+            removeItem(product.id);
             setRun(!run); // run useEffect in parent Cart
           }}
           className="btn btn-outline-danger mt-2 mb-2"
@@ -98,7 +98,7 @@ const Card = ({
               type="number"
               className="form-control"
               value={count}
-              onChange={handleChange(product._id)}
+              onChange={handleChange(product.id)}
             />
           </div>
         </div>

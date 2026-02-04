@@ -1,14 +1,14 @@
 import { Request, Response, NextFunction } from 'express';
-import { IOrder, Order } from '../models/order';
 import { errorHandler } from '../helpers/dbErrorHandler';
-import { IUser } from '../models/user';
+import { getManager } from 'typeorm';
+import { Order } from '../entity/Order';
+import { User } from '../entity/User';
 
 interface OrderRequest extends Request {
-  order?: IOrder;
-  profile?: IUser;
+  order?: Order;
+  profile?: User;
 }
 
-// Middleware to fetch order by ID
 export const orderById = async (
   req: OrderRequest,
   res: Response,
@@ -16,84 +16,92 @@ export const orderById = async (
   id: string
 ): Promise<void> => {
   try {
-    const order = await Order.findById(id)
-      .populate('products.product', 'name price')
-      .exec();
+    const orderRepository = getManager().getRepository(Order);
+    const order = await orderRepository.findOne({
+      where: { id },
+      relations: ['products', 'products.product']
+    });
     if (!order) {
-      res.status(400).json({
-        error: 'Order not found'
-      });
+      res.status(400).json({ error: 'Order not found' });
       return;
     }
-    req.order = order; // Attach the order to the request object
+    req.order = order;
     next();
   } catch (error) {
-    res.status(400).json({
-      error: errorHandler(error)
-    });
+    res
+      .status(500)
+      .json({ error: errorHandler(error), details: error.message });
   }
 };
 
-// Create a new order
 export const create = async (
   req: OrderRequest,
   res: Response
 ): Promise<void> => {
   try {
-    req.body.order.user = req.profile;
-    const order = new Order(req.body.order);
-    const data = await order.save();
-    res.json(data);
+    const orderRepository = getManager().getRepository(Order);
+    const order = orderRepository.create({
+      ...req.body.order,
+      user: req.profile
+    });
+    const savedOrder = await orderRepository.save(order);
+    res.json(savedOrder);
   } catch (error) {
     res.status(400).json({
-      error: errorHandler(error)
+      error: errorHandler(error),
+      details: error.message
     });
   }
 };
 
-// List all orders
 export const listOrders = async (
   req: Request,
   res: Response
 ): Promise<void> => {
   try {
-    const orders = await Order.find()
-      .populate('user', '_id name address')
-      .sort('-created')
-      .exec();
+    const orderRepository = getManager().getRepository(Order);
+    const orders = await orderRepository.find({
+      relations: ['user'],
+      order: { createdAt: 'DESC' }
+    });
+
     res.json(orders);
   } catch (error) {
     res.status(400).json({
-      error: errorHandler(error)
+      error: errorHandler(error),
+      details: error.message
     });
   }
 };
 
-// Get status values for orders
 export const getStatusValues = (req: Request, res: Response): void => {
-  res.json((Order.schema.path('status') as any).enumValues);
+  res.json([
+    'Not processed',
+    'Processing',
+    'Shipped',
+    'Delivered',
+    'Cancelled'
+  ]);
 };
 
-// Update order status
 export const updateOrderStatus = async (
   req: Request,
   res: Response
 ): Promise<void> => {
   try {
-    const order = await Order.findByIdAndUpdate(
-      { _id: req.body.orderId },
-      { $set: { status: req.body.status } },
-      { new: true }
-    ).exec();
+    const orderRepository = getManager().getRepository(Order);
+    const order = await orderRepository.findOne({ id: req.body.orderId });
     if (!order) {
-      res.status(400).json({
-        error: 'Order not found'
-      });
+      res.status(400).json({ error: 'Order not found' });
+      return;
     }
-    res.json(order);
+    order.status = req.body.status;
+    const updatedOrder = await orderRepository.save(order);
+    res.json(updatedOrder);
   } catch (error) {
     res.status(400).json({
-      error: errorHandler(error)
+      error: errorHandler(error),
+      details: error.message
     });
   }
 };

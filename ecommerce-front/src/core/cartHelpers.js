@@ -18,8 +18,8 @@ export const addItem = (item, next) => {
       run map() on it again and return the actual product from the cart
     */
 
-    cart = Array.from(new Set(cart.map((p) => p._id))).map((id) => {
-      return cart.find((p) => p._id === id);
+    cart = Array.from(new Set(cart.map((p) => p.id))).map((id) => {
+      return cart.find((p) => p.id === id);
     });
 
     localStorage.setItem('cart', JSON.stringify(cart));
@@ -54,7 +54,7 @@ export const updateItem = (productId, count) => {
 
     /*eslint-disable */
     cart.map((product, i) => {
-      if (product._id === productId) {
+      if (product.id === productId) {
         cart[i].count = count;
       }
     });
@@ -72,7 +72,7 @@ export const removeItem = (productId) => {
 
     /*eslint-disable */
     cart.map((product, i) => {
-      if (product._id === productId) {
+      if (product.id === productId) {
         cart.splice(i, 1);
       }
     });

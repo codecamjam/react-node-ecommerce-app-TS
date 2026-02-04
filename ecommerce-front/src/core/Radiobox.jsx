@@ -12,7 +12,7 @@ const Radiobox = ({ prices, handleFilters }) => {
     <div key={i}>
       <input
         onChange={handleChange}
-        value={`${p._id}`}
+        value={`${p.id}`}
         type="radio"
         name={p}
         className="form-check-input"

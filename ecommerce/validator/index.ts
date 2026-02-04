@@ -1,31 +1,33 @@
-import { Joi, validate } from 'express-validation';
+import { Request, Response, NextFunction } from 'express';
 
-export const userSignupValidator = validate({
-  body: Joi.object({
-    name: Joi.string()
-      .required()
-      .messages({
-        'any.required': 'Name is required'
-      }),
-    email: Joi.string()
-      .email()
-      .min(4)
-      .max(32)
-      .required()
-      .messages({
-        'string.email': 'Email must contain @',
-        'string.min': 'Email must be at least 4 characters',
-        'string.max': 'Email must not exceed 32 characters',
-        'any.required': 'Email is required'
-      }),
-    password: Joi.string()
-      .min(6)
-      .pattern(/\d/)
-      .required()
-      .messages({
-        'string.min': 'Password must contain at least 6 characters',
-        'string.pattern.base': 'Password must contain a number',
-        'any.required': 'Password is required'
-      })
-  })
-});
+export const userSignupValidator = (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  req.check('name', 'Name is required').notEmpty();
+
+  req
+    .check('email', 'Email must be between 3 to 32 characters')
+    .matches(/.+@.+\..+/)
+    .withMessage('Email must contain @')
+    .isLength({ min: 4, max: 32 });
+
+  req.check('password', 'Password is required').notEmpty();
+
+  req
+    .check('password')
+    .isLength({ min: 6 })
+    .withMessage('Password must contain at least 6 characters')
+    .matches(/\d/)
+    .withMessage('Password must contain a number');
+
+  const errors = req.validationErrors();
+
+  if (errors) {
+    const firstError = errors.map(error => error.msg)[0];
+    return res.status(400).json({ error: firstError });
+  }
+
+  next();
+};

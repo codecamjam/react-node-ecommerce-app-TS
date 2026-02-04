@@ -93,7 +93,7 @@ const Shop = () => {
     let array = [];
 
     for (let key in data) {
-      if (data[key]._id === parseInt(value)) {
+      if (data[key].id === parseInt(value)) {
         array = data[key].array;
       }
     }

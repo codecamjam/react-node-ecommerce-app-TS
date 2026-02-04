@@ -9,7 +9,7 @@ const UserDashboard = () => {
   const [history, setHistory] = useState([]);
 
   const {
-    user: { _id, name, email, role },
+    user: { id, name, email, role },
     token,
   } = isAuthenticated();
 
@@ -24,8 +24,8 @@ const UserDashboard = () => {
   };
 
   useEffect(() => {
-    init(_id, token);
-  }, [_id, token]);
+    init(id, token);
+  }, [id, token]);
 
   const userLinks = () => {
     return (
@@ -38,7 +38,7 @@ const UserDashboard = () => {
             </Link>
           </li>
           <li className="list-group-item">
-            <Link className="nav-link" to={`/profile/${_id}`}>
+            <Link className="nav-link" to={`/profile/${id}`}>
               Update Profile
             </Link>
           </li>

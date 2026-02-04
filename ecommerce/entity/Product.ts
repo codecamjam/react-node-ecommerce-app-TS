@@ -5,9 +5,11 @@ import {
   ManyToOne,
   JoinColumn,
   BeforeInsert,
-  BeforeUpdate
+  BeforeUpdate,
+  OneToMany
 } from 'typeorm';
 import { Category } from './Category';
+import { CartItem } from './CartItem';
 
 @Entity()
 export class Product {
@@ -17,7 +19,7 @@ export class Product {
   @Column({ type: 'varchar', length: 50 })
   name: string;
 
-  @Column({ type: 'text', length: 2000 })
+  @Column({ type: 'text' })
   description: string;
 
   @Column({ type: 'decimal', precision: 10, scale: 2 })
@@ -44,6 +46,12 @@ export class Product {
 
   @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
   createdAt: Date;
+
+  @OneToMany(
+    () => CartItem,
+    cartItem => cartItem.product
+  )
+  cartItems: CartItem[];
 
   @Column({
     type: 'timestamp',

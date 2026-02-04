@@ -1,9 +1,10 @@
 import { Request, Response, NextFunction } from 'express';
-import Category, { ICategory } from '../models/category';
 import { errorHandler } from '../helpers/dbErrorHandler';
+import { Category } from '../entity/Category';
+import { getManager } from 'typeorm';
 
 interface CategoryRequest extends Request {
-  category?: ICategory;
+  category?: Category;
 }
 
 export const categoryById = async (
@@ -13,7 +14,8 @@ export const categoryById = async (
   id: string
 ): Promise<void | Response> => {
   try {
-    const category = await Category.findById(id).exec();
+    const repository = getManager().getRepository(Category);
+    const category = await repository.findOne(id);
     if (!category) {
       return res.status(400).json({ error: 'Category does not exist' });
     }
@@ -29,8 +31,9 @@ export const create = async (
   res: Response
 ): Promise<Response> => {
   try {
-    const category = new Category(req.body);
-    const data = await category.save();
+    const { name } = req.body;
+    const repository = getManager().getRepository(Category);
+    const data = await repository.save({ name });
     return res.json({ data });
   } catch (err) {
     return res.status(400).json({ error: errorHandler(err) });
@@ -46,10 +49,12 @@ export const update = async (
   res: Response
 ): Promise<Response> => {
   try {
-    const category = req.category;
-    category.name = req.body.name;
-    const data = await category.save();
-    return res.json(data);
+    const repository = getManager().getRepository(Category);
+    const category = await repository.save({
+      id: req.category?.id,
+      name: req.body.name
+    });
+    return res.json(category);
   } catch (err) {
     return res.status(400).json({ error: errorHandler(err) });
   }
@@ -60,8 +65,9 @@ export const remove = async (
   res: Response
 ): Promise<Response> => {
   try {
-    const category: ICategory = req.category;
-    await category.remove();
+    const { category } = req;
+    const repository = getManager().getRepository(Category);
+    await repository.delete(category.id);
     return res.json({ message: 'Category deleted' });
   } catch (err) {
     return res.status(400).json({ error: errorHandler(err) });
@@ -73,7 +79,8 @@ export const list = async (
   res: Response
 ): Promise<Response> => {
   try {
-    const data = await Category.find().exec();
+    const repository = getManager().getRepository(Category);
+    const data = await repository.find();
     return res.json(data);
   } catch (err) {
     return res.status(400).json({ error: errorHandler(err) });

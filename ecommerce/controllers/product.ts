@@ -1,33 +1,36 @@
 import { NextFunction, Request, Response } from 'express';
 import formidable, { Fields, Files, File } from 'formidable';
 import fs from 'fs';
-import { IProduct, Product } from '../models/product';
-import mongoose from 'mongoose';
+import { getManager, Like, Not } from 'typeorm';
 import { errorHandler } from '../helpers/dbErrorHandler';
+import { Product } from '../entity/Product';
+import { Category } from '../entity/Category';
 
 // Extend Request to include custom properties
 interface ProductRequest extends Request {
-  product?: IProduct;
+  product?: Product;
 }
 
-// Middleware to fetch product by ID
+// Get a product by ID
 export const productById = async (
   req: ProductRequest,
   res: Response,
-  next: NextFunction,
+  next: any,
   id: string
 ): Promise<void> => {
+  const productRepository = getManager().getRepository(Product);
   try {
-    const product = await Product.findById(id)
-      .populate('category')
-      .exec();
+    const product = await productRepository.findOne(id, {
+      relations: ['category']
+    });
     if (!product) {
       res.status(400).json({ error: 'Product not found' });
+      return;
     }
     req.product = product;
     next();
-  } catch (err) {
-    res.status(400).json({ error: 'Error fetching product' });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
   }
 };
 
@@ -37,21 +40,26 @@ export const read = (
   res: Response
 ): Response | void => {
   if (req.product) {
-    req.product.photo = undefined;
+    req.product.photoData = undefined;
+    req.product.photoContentType = undefined;
     return res.json(req.product);
   }
   return res.status(400).json({ error: 'Product not found' });
 };
 
-// Create product
-export const create = (req: Request, res: Response): void => {
+export const create = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   const form = new formidable.IncomingForm({ keepExtensions: true });
+
   form.parse(req, async (err, fields, files) => {
     if (err) {
       return res
         .status(400)
         .json({ error: 'Image could not be uploaded' });
     }
+
     const {
       name,
       description,
@@ -60,6 +68,7 @@ export const create = (req: Request, res: Response): void => {
       quantity,
       shipping
     } = fields;
+
     if (
       !name ||
       !description ||
@@ -70,7 +79,19 @@ export const create = (req: Request, res: Response): void => {
     ) {
       return res.status(400).json({ error: 'All fields are required' });
     }
-    const product = new Product(fields);
+
+    const productRepository = getManager().getRepository(Product);
+
+    const product = new Product();
+    product.name = name as string;
+    product.description = description as string;
+    product.price = parseFloat(price as string);
+    product.category = {
+      id: parseInt(category as string, 10)
+    } as Category; // fixed here
+    product.quantity = parseInt(quantity as string, 10);
+    product.shipping = shipping === 'true';
+
     if (files.photo) {
       const photo = files.photo as File;
       if (photo.size > 1000000) {
@@ -78,12 +99,13 @@ export const create = (req: Request, res: Response): void => {
           .status(400)
           .json({ error: 'Image should be less than 1mb in size' });
       }
-      product.photo.data = fs.readFileSync(photo.path);
-      product.photo.contentType = photo.type || '';
+      product.photoData = fs.readFileSync(photo.path);
+      product.photoContentType = photo.type || '';
     }
+
     try {
-      const result = await product.save();
-      res.json(result);
+      const savedProduct = await productRepository.save(product);
+      res.json(savedProduct);
     } catch (error) {
       res.status(400).json({ error: errorHandler(error) });
     }
@@ -97,7 +119,8 @@ export const remove = async (
 ): Promise<void> => {
   try {
     if (req.product) {
-      await req.product.remove();
+      const repository = getManager().getRepository(Product);
+      await repository.delete(req.product.id);
       res.json({ message: 'Product deleted successfully' });
     } else {
       res.status(400).json({ error: 'Product not found' });
@@ -121,7 +144,7 @@ export const update = (req: ProductRequest, res: Response): void => {
       return res.status(400).json({ error: 'Product not found' });
     }
 
-    // Manually map fields with correct types
+    const productRepository = getManager().getRepository(Product);
     const product = req.product;
 
     if (fields.name) product.name = fields.name as string;
@@ -129,13 +152,12 @@ export const update = (req: ProductRequest, res: Response): void => {
       product.description = fields.description as string;
     if (fields.price) product.price = parseFloat(fields.price as string);
     if (fields.category)
-      product.category = new mongoose.Types.ObjectId(
-        fields.category as string
-      );
+      product.category = {
+        id: parseInt(fields.category as string, 10)
+      } as Category;
     if (fields.quantity)
       product.quantity = parseInt(fields.quantity as string, 10);
-    if (fields.shipping)
-      product.shipping = fields.shipping === 'true' ? true : false;
+    if (fields.shipping) product.shipping = fields.shipping === 'true';
 
     if (files.photo) {
       const photo = files.photo as File;
@@ -145,34 +167,49 @@ export const update = (req: ProductRequest, res: Response): void => {
         });
       }
 
-      product.photo.data = fs.readFileSync(photo.path);
-      product.photo.contentType = photo.type || '';
+      product.photoData = fs.readFileSync(photo.path);
+      product.photoContentType = photo.type || '';
     }
 
     try {
-      const result = await product.save();
+      const result = await productRepository.save(product);
       res.json(result);
     } catch (error) {
-      res.status(400).json({ error: errorHandler(error) });
+      res.status(400).json({ error: error.message });
     }
   });
 };
+
 export const list = async (
   req: Request,
   res: Response
 ): Promise<Response> => {
-  const order = (req.query.order as string) || 'asc';
-  const sortBy = (req.query.sortBy as string) || '_id';
+  const order =
+    (req.query.order as 'ASC' | 'DESC')?.toUpperCase() || 'ASC';
+  const sortBy = (req.query.sortBy as string) || 'id';
   const limit = req.query.limit
     ? parseInt(req.query.limit as string, 10)
     : 6;
 
+  const productRepository = getManager().getRepository(Product);
+
   try {
-    const products = await Product.find()
-      .select('-photo')
-      .populate('category')
-      .sort({ [sortBy]: order })
-      .limit(limit);
+    const products = await productRepository.find({
+      select: [
+        'id',
+        'name',
+        'description',
+        'price',
+        'quantity',
+        'shipping',
+        'createdAt',
+        'updatedAt'
+      ], // excluding photo fields explicitly
+      relations: ['category'],
+      order: { [sortBy]: order },
+      take: limit
+    });
+
     return res.json(products);
   } catch (err) {
     return res.status(400).json({ error: 'Products not found' });
@@ -187,13 +224,17 @@ export const listRelated = async (
     ? parseInt(req.query.limit as string, 10)
     : 6;
 
+  const productRepository = getManager().getRepository(Product);
+
   try {
-    const products = await Product.find({
-      _id: { $ne: req.product._id },
-      category: req.product.category
-    })
-      .limit(limit)
-      .populate('category', '_id name');
+    const products = await productRepository.find({
+      where: {
+        id: Not(req.product.id),
+        category: { id: req.product.category.id }
+      },
+      relations: ['category'],
+      take: limit
+    });
 
     return res.json(products);
   } catch (err) {
@@ -205,46 +246,57 @@ export const listCategories = async (
   req: Request,
   res: Response
 ): Promise<Response> => {
+  const categoryRepository = getManager().getRepository(Category);
+
   try {
-    const categories = await Product.distinct('category').exec();
+    const categories = await categoryRepository.find();
     return res.json(categories);
   } catch (err) {
-    return res.status(400).json({ error: 'Products not found' });
+    return res.status(400).json({ error: 'Categories not found' });
   }
 };
 
 export const listBySearch = async (
-  req: Request,
+  req: ProductRequest,
   res: Response
 ): Promise<Response> => {
-  const order = req.body.order || 'desc';
-  const sortBy = req.body.sortBy || '_id';
+  const order = req.body.order?.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
+  const sortBy = req.body.sortBy || 'id';
   const limit = req.body.limit ? parseInt(req.body.limit, 10) : 100;
   const skip = req.body.skip ? parseInt(req.body.skip, 10) : 0;
-  const findArgs: Record<string, any> = {};
 
-  for (const key in req.body.filters) {
-    if (req.body.filters[key].length > 0) {
-      if (key === 'price') {
-        findArgs[key] = {
-          $gte: req.body.filters[key][0],
-          $lte: req.body.filters[key][1]
-        };
-      } else {
-        findArgs[key] = req.body.filters[key];
+  const productRepository = getManager().getRepository(Product);
+  const queryBuilder = productRepository
+    .createQueryBuilder('product')
+    .leftJoinAndSelect('product.category', 'category');
+
+  const filters = req.body.filters;
+
+  if (filters) {
+    Object.keys(filters).forEach(key => {
+      if (filters[key].length > 0) {
+        if (key === 'price') {
+          queryBuilder.andWhere('product.price BETWEEN :min AND :max', {
+            min: filters[key][0],
+            max: filters[key][1]
+          });
+        } else {
+          queryBuilder.andWhere(`product.${key} IN (:...${key})`, {
+            [key]: filters[key]
+          });
+        }
       }
-    }
+    });
   }
 
   try {
-    const data = await Product.find(findArgs)
-      .select('-photo')
-      .populate('category')
-      .sort({ [sortBy]: order })
+    const [data, total] = await queryBuilder
+      .orderBy(`product.${sortBy}`, order)
       .skip(skip)
-      .limit(limit);
+      .take(limit)
+      .getManyAndCount();
 
-    return res.json({ size: data.length, data });
+    return res.json({ size: total, data });
   } catch (err) {
     return res.status(400).json({ error: 'Products not found' });
   }
@@ -255,35 +307,55 @@ export const photo = (
   res: Response,
   next: NextFunction
 ): void => {
-  if (req.product?.photo?.data) {
-    res.set('Content-Type', req.product.photo.contentType);
-    res.send(req.product.photo.data);
+  if (req.product?.photoData) {
+    res.set('Content-Type', req.product.photoContentType);
+    res.send(req.product.photoData);
   } else {
     next();
   }
 };
 
 export const listSearch = async (
-  req: Request,
+  req: ProductRequest,
   res: Response
 ): Promise<Response> => {
-  const query: Record<string, any> = {};
+  const search = req.query.search as string;
+  const category = req.query.category as string;
 
-  if (req.query.search) {
-    query.name = { $regex: req.query.search, $options: 'i' };
-
-    if (req.query.category && req.query.category !== 'All') {
-      query.category = req.query.category;
-    }
-
-    try {
-      const products = await Product.find(query).select('-photo');
-      return res.json(products);
-    } catch (err) {
-      return res.status(400).json({ error: errorHandler(err) });
-    }
+  if (!search) {
+    return res.status(400).json({ error: 'No search query provided' });
   }
-  return res.status(400).json({ error: 'No search query provided' });
+
+  const productRepository = getManager().getRepository(Product);
+
+  const whereCondition: any = {
+    name: Like(`%${search}%`)
+  };
+
+  if (category && category !== 'All') {
+    whereCondition.category = { id: parseInt(category, 10) };
+  }
+
+  try {
+    const products = await productRepository.find({
+      where: whereCondition,
+      relations: ['category'],
+      select: [
+        'id',
+        'name',
+        'description',
+        'price',
+        'quantity',
+        'shipping',
+        'createdAt',
+        'updatedAt'
+      ] // exclude photo explicitly
+    });
+
+    return res.json(products);
+  } catch (err) {
+    return res.status(400).json({ error: err.message });
+  }
 };
 
 export const decreaseQuantity = async (
@@ -291,15 +363,21 @@ export const decreaseQuantity = async (
   res: Response,
   next: NextFunction
 ): Promise<void | Response> => {
-  const bulkOps = req.body.order.products.map((item: any) => ({
-    updateOne: {
-      filter: { _id: item._id },
-      update: { $inc: { quantity: -item.count, sold: +item.count } }
-    }
-  }));
+  const productRepository = getManager().getRepository(Product);
 
   try {
-    await Product.bulkWrite(bulkOps, {});
+    for (const item of req.body.order.products) {
+      await productRepository
+        .createQueryBuilder()
+        .update(Product)
+        .set({
+          quantity: () => `quantity - ${item.count}`,
+          sold: () => `sold + ${item.count}`
+        })
+        .where('id = :id', { id: item._id })
+        .execute();
+    }
+
     next();
   } catch (error) {
     return res.status(400).json({ error: 'Could not update product' });
