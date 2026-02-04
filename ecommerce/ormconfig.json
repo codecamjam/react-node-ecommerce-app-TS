@@ -3,7 +3,7 @@
   "host": "localhost",
   "port": 3306,
   "username": "root",
-  "password": "2001",
+  "password": "password",
   "database": "ecommerce",
   "entities": ["./entity/*.ts"],
   "logging": false,
